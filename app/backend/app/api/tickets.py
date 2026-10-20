@@ -16,7 +16,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import ensure_client_access, get_current_user, require_agency
+from app.core.security import (
+    ensure_client_access,
+    get_current_user,
+    require_agency,
+    require_admin,
+)
 from app.db.session import get_db
 from app.models.models import (
     Applications,
@@ -250,6 +255,11 @@ def add_time_log(
     user: Users = Depends(require_agency),
 ):
     ticket = _get_ticket(db, ticket_id, user)
+    if ticket.contract.state != "activo":
+        raise HTTPException(
+            status_code=409,
+            detail="El contrato está archivado; no admite nuevos consumos",
+        )
     now = now_utc()
 
     db.add(
@@ -362,3 +372,26 @@ def download_attachment(
         media_type=attachment.content_type or "application/octet-stream",
         filename=attachment.filename,
     )
+
+
+@router.delete(
+    "/tickets/{ticket_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_attachment(
+    ticket_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    _: Users = Depends(require_admin),
+):
+    ticket = db.get(Tickets, ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    attachment = db.get(TicketAttachments, attachment_id)
+    if attachment is None or attachment.ticket_id != ticket_id:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+
+    Path(attachment.storage_path).unlink(missing_ok=True)
+    db.delete(attachment)
+    db.commit()

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
-from app.models.models import Plans, Tickets
+from app.models.models import Contracts, Plans, Tickets
 from app.services.sla_monitor import check_sla
 from app.services.tickets import deadlines_for
 
@@ -257,6 +257,58 @@ def test_attachments_upload_download_and_isolation(scenario, tmp_path, monkeypat
         f"/api/tickets/{ticket_id}", headers=auth(scenario["tokens"]["admin"])
     )
     assert detail.json()["attachments"][0]["id"] == attachment["id"]
+
+
+def test_time_log_rejected_on_archived_contract(scenario):
+    headers = auth(scenario["tokens"]["admin"])
+    contract_id = scenario["contracts"]["Cliente A"]
+    ticket_id = create_ticket(scenario).json()["id"]
+
+    contract = scenario["db"].get(Contracts, contract_id)
+    contract.state = "archivado"
+    scenario["db"].commit()
+
+    response = scenario["api"].post(
+        f"/api/tickets/{ticket_id}/time-logs",
+        json={"hours": 2},
+        headers=headers,
+    )
+    assert response.status_code == 409, response.text
+
+    bank = scenario["api"].get(
+        f"/api/contracts/{contract_id}/hour-bank", headers=headers
+    ).json()
+    assert bank["hours_consumed"] == 0
+
+
+def test_attachment_delete_is_admin_only(scenario, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "upload_dir", str(tmp_path))
+    ticket_id = create_ticket(scenario).json()["id"]
+    uploaded = scenario["api"].post(
+        f"/api/tickets/{ticket_id}/attachments",
+        files={"file": ("nota.txt", b"contenido", "text/plain")},
+        headers=auth(scenario["tokens"]["admin"]),
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    attachment_id = uploaded.json()["id"]
+
+    forbidden = scenario["api"].delete(
+        f"/api/tickets/{ticket_id}/attachments/{attachment_id}",
+        headers=auth(scenario["tokens"]["tecnico"]),
+    )
+    assert forbidden.status_code == 403
+
+    removed = scenario["api"].delete(
+        f"/api/tickets/{ticket_id}/attachments/{attachment_id}",
+        headers=auth(scenario["tokens"]["admin"]),
+    )
+    assert removed.status_code == 204
+
+    missing = scenario["api"].get(
+        f"/api/tickets/{ticket_id}/attachments/{attachment_id}",
+        headers=auth(scenario["tokens"]["admin"]),
+    )
+    assert missing.status_code == 404
 
 
 def test_dashboard_agency_and_client(scenario):
