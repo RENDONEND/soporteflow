@@ -1,22 +1,40 @@
-from sqlalchemy import Column, Integer, String, Text, JSON, DateTime, ForeignKey, Enum, Numeric, Boolean
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import relationship
+
 from app.db.session import Base
 import enum
+
 
 class PlanCoverageType(str, enum.Enum):
     BASICO = "basico"
     PRIORITARIO = "prioritario"
     PREMIUM = "premium"
 
+
 class TicketType(str, enum.Enum):
     SOPORTE = "soporte"
     FUNCIONALIDAD = "funcionalidad"
+
 
 class TicketSeverity(str, enum.Enum):
     CRITICO = "critico"
     ALTO = "alto"
     NORMAL = "normal"
     BAJO = "bajo"
+
 
 class TicketStatus(str, enum.Enum):
     ABIERTO = "abierto"
@@ -25,6 +43,7 @@ class TicketStatus(str, enum.Enum):
     RESUELTO = "resuelto"
     CERRADO = "cerrado"
 
+
 class PackStatus(str, enum.Enum):
     PROPUESTO = "propuesto"
     APROBADO = "aprobado"
@@ -32,111 +51,158 @@ class PackStatus(str, enum.Enum):
     ENTREGADO = "entregado"
     FACTURADO = "facturado"
 
+
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     TECNICO = "tecnico"
     CLIENTE = "cliente"
 
+
 class Clients(Base):
     __tablename__ = "clients"
+
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String(120), nullable=False)
     contacts = Column(JSON)
+
+    applications = relationship("Applications", back_populates="client")
+
 
 class Applications(Base):
     __tablename__ = "applications"
+
     id = Column(Integer, primary_key=True)
-    client_id = Column(Integer, ForeignKey("clients.id"))
-    name = Column(String, nullable=False)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
     description = Column(Text)
+
+    client = relationship("Clients", back_populates="applications")
+    contracts = relationship("Contracts", back_populates="application")
+
 
 class Plans(Base):
     __tablename__ = "plans"
+
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    window_coverage = Column(JSON)
-    sla_by_severity = Column(JSON)
-    hours_bank_default = Column(Integer)
+    name = Column(String(80), nullable=False)
+    window_coverage = Column(JSON, nullable=False)
+    sla_by_severity = Column(JSON, nullable=False)
+    hours_bank_default = Column(Numeric(6, 2), nullable=False)
     what_covers = Column(JSON)
+
 
 class Contracts(Base):
     __tablename__ = "contracts"
+
     id = Column(Integer, primary_key=True)
-    application_id = Column(Integer, ForeignKey("applications.id"))
-    plan_id = Column(Integer, ForeignKey("plans.id"))
-    hours_bank_month = Column(Integer)
-    cut_date_day = Column(Integer)
-    currency = Column(String, default="USD")
-    hourly_rate_extra = Column(Numeric)
-    timezone = Column(String, default="America/Argentina/Buenos_Aires")
-    state = Column(String, default="activo")
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=False, index=True)
+    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False, index=True)
+    hours_bank_month = Column(Numeric(6, 2), nullable=False)
+    cut_date_day = Column(Integer, nullable=False, default=1)
+    currency = Column(String(3), nullable=False, default="USD")
+    hourly_rate_extra = Column(Numeric(10, 2), nullable=False, default=0)
+    timezone = Column(String(64), nullable=False, default="America/Argentina/Buenos_Aires")
+    state = Column(String(20), nullable=False, default="activo")
+
+    application = relationship("Applications", back_populates="contracts")
+    plan = relationship("Plans")
+    cycles = relationship("HourBankCycles", back_populates="contract")
+
 
 class HourBankCycles(Base):
     __tablename__ = "hour_bank_cycles"
+    __table_args__ = (UniqueConstraint("contract_id", "month", name="uq_cycle_contract_month"),)
+
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"))
-    month = Column(String)  # YYYY-MM
-    hours_assigned = Column(Numeric)
-    hours_consumed = Column(Numeric, default=0)
-    closed = Column(Boolean, default=False)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    month = Column(String(7), nullable=False)  # YYYY-MM del inicio del ciclo
+    hours_assigned = Column(Numeric(6, 2), nullable=False)
+    hours_consumed = Column(Numeric(6, 2), nullable=False, default=0)
+    closed = Column(Boolean, nullable=False, default=False)
+
+    contract = relationship("Contracts", back_populates="cycles")
+
+
+class HourBankAdjustments(Base):
+    __tablename__ = "hour_bank_adjustments"
+
+    id = Column(Integer, primary_key=True)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    cycle_id = Column(Integer, ForeignKey("hour_bank_cycles.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    hours = Column(Numeric(6, 2), nullable=False)
+    note = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 
 class Tickets(Base):
     __tablename__ = "tickets"
+
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"))
-    type = Column(Enum(TicketType))
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    type = Column(Enum(TicketType), nullable=False)
     severity = Column(Enum(TicketSeverity), nullable=True)
     status = Column(Enum(TicketStatus), default=TicketStatus.ABIERTO)
-    title = Column(String)
+    title = Column(String(200))
     description = Column(Text)
     created_by = Column(Integer)
-    opened_at = Column(DateTime)
-    sla_deadline = Column(DateTime, nullable=True)
-    resolved_at = Column(DateTime, nullable=True)
+    opened_at = Column(DateTime(timezone=True))
+    sla_deadline = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
 
 class TicketTimeLogs(Base):
     __tablename__ = "ticket_time_logs"
+
     id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    user_id = Column(Integer)
-    hours = Column(Numeric)
-    logged_at = Column(DateTime)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    hours = Column(Numeric(6, 2))
+    logged_at = Column(DateTime(timezone=True))
     note = Column(Text)
+
 
 class FeaturePacks(Base):
     __tablename__ = "feature_packs"
+
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"))
-    name = Column(String)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    name = Column(String(160))
     status = Column(Enum(PackStatus), default=PackStatus.PROPUESTO)
-    hours_estimated = Column(Numeric)
-    hours_real = Column(Numeric, default=0)
-    price = Column(Numeric)
+    hours_estimated = Column(Numeric(6, 2))
+    hours_real = Column(Numeric(6, 2), default=0)
+    price = Column(Numeric(12, 2))
     approved_by = Column(Integer, nullable=True)
-    approved_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
 
 class MaintenanceTasks(Base):
     __tablename__ = "maintenance_tasks"
+
     id = Column(Integer, primary_key=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"))
-    name = Column(String)
-    recurrence = Column(String)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    name = Column(String(160))
+    recurrence = Column(String(40))
     checklist = Column(JSON)
+
 
 class MaintenanceRuns(Base):
     __tablename__ = "maintenance_runs"
+
     id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey("maintenance_tasks.id"))
-    run_at = Column(DateTime)
+    task_id = Column(Integer, ForeignKey("maintenance_tasks.id"), nullable=False, index=True)
+    run_at = Column(DateTime(timezone=True))
     completed_by = Column(Integer)
-    hours = Column(Numeric)
+    hours = Column(Numeric(6, 2))
     notes = Column(Text)
+
 
 class Users(Base):
     __tablename__ = "users"
+
     id = Column(Integer, primary_key=True)
-    role = Column(Enum(UserRole))
+    role = Column(Enum(UserRole), nullable=False)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
-    email = Column(String, unique=True)
-    name = Column(String)
-    hashed_password = Column(String)
+    email = Column(String(160), unique=True, nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    hashed_password = Column(String(200), nullable=False)

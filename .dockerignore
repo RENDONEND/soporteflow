@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.example
+**/__pycache__
+**/*.pyc
+.pytest_cache
+*.db
+app/frontend
+SoporteFlow_Plan.md
+README.md

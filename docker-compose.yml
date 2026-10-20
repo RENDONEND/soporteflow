@@ -1,24 +1,53 @@
-name: SoporteFlow
+name: soporteflow
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg2://soporteflow:${DB_PASSWORD:?definí DB_PASSWORD en .env (lo genera start.sh)}@db:5432/soporteflow
+  JWT_SECRET: ${JWT_SECRET:?definí JWT_SECRET en .env (lo genera start.sh)}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@soporteflow.local}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?definí ADMIN_PASSWORD en .env (lo genera start.sh)}
+
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: app/infra/Dockerfile
+      target: runtime
+    environment: *backend-env
     ports:
       - "127.0.0.1:8000:8000"
-    environment:
-      DATABASE_URL: postgresql://soporteflow:${DB_PASSWORD}@db:5432/soporteflow
-      SMTP_HOST: ${SMTP_HOST:-}
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: app/infra/Dockerfile
+      target: runtime
+    command: ["python", "-m", "app.scheduler.worker"]
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: soporteflow
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?definí DB_PASSWORD en .env (lo genera start.sh)}
       POSTGRES_DB: soporteflow
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -26,19 +55,21 @@ services:
       test: ["CMD-SHELL", "pg_isready -U soporteflow"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
-  scheduler:
+
+  test:
+    profiles: ["test"]
     build:
       context: .
       dockerfile: app/infra/Dockerfile
-    command: ["python", "-m", "app.scheduler.worker"]
+      target: test
     environment:
-      DATABASE_URL: postgresql://soporteflow:${DB_PASSWORD}@db:5432/soporteflow
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
+      DATABASE_URL: sqlite://
+      JWT_SECRET: test-secret
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: test-admin-password
+    command: ["pytest", "-q"]
 
 volumes:
   pgdata:
