@@ -86,6 +86,7 @@ por tests.
 | `POST` | `/api/tickets/{id}/time-logs` | admin/técnico |
 | `POST` | `/api/tickets/{id}/attachments` | autenticado con aislamiento |
 | `GET` | `/api/tickets/{id}/attachments/{attachment_id}` | autenticado con aislamiento |
+| `DELETE` | `/api/tickets/{id}/attachments/{attachment_id}` | admin |
 
 Ejemplo:
 
@@ -138,6 +139,8 @@ mismo valor que resolución.
   monitorea SLA.
 - Cada consumo queda registrado en `hour_bank_adjustments` (quién, cuánto, cuándo
   y nota), venga de un ticket o de una carga manual.
+- Un contrato archivado no admite consumos nuevos (`409`); el historial y las
+  consultas siguen disponibles.
 - Cambiar las horas del contrato afecta al ciclo siguiente, no al vigente.
 
 ## Frontend
@@ -167,7 +170,7 @@ npm run dev   # http://127.0.0.1:5173 (proxy a la API)
 ./start.sh test
 ```
 
-50 tests cubren: SLA (ventanas, fines de semana, feriados, 24/7, primera
+52 tests cubren: SLA (ventanas, fines de semana, feriados, 24/7, primera
 respuesta), ciclos del banco (sin arrastre, umbrales, consumo), autenticación y
 roles, aislamiento entre clientes, tickets (creación, severidades, estados,
 comentarios internos, time logs, adjuntos), dashboard y CRUD de
