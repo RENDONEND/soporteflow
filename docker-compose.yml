@@ -1,0 +1,44 @@
+name: SoporteFlow
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: app/infra/Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql://soporteflow:${DB_PASSWORD}@db:5432/soporteflow
+      SMTP_HOST: ${SMTP_HOST:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: soporteflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: soporteflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soporteflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  scheduler:
+    build:
+      context: .
+      dockerfile: app/infra/Dockerfile
+    command: ["python", "-m", "app.scheduler.worker"]
+    environment:
+      DATABASE_URL: postgresql://soporteflow:${DB_PASSWORD}@db:5432/soporteflow
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
