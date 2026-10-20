@@ -6,6 +6,7 @@
 **/*.pyc
 .pytest_cache
 *.db
-app/frontend
+app/frontend/node_modules
+app/frontend/dist
 SoporteFlow_Plan.md
 README.md

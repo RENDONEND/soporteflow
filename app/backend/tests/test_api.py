@@ -4,21 +4,21 @@ def auth(token: str) -> dict:
 
 def test_sin_token_da_401(scenario):
     api = scenario["api"]
-    assert api.get("/clients").status_code == 401
-    assert api.get("/contracts").status_code == 401
+    assert api.get("/api/clients").status_code == 401
+    assert api.get("/api/contracts").status_code == 401
 
 
 def test_login_incorrecto(scenario):
     api = scenario["api"]
     response = api.post(
-        "/auth/login", json={"email": "admin@test.local", "password": "mala"}
+        "/api/auth/login", json={"email": "admin@test.local", "password": "mala"}
     )
     assert response.status_code == 401
 
 
 def test_login_y_me(scenario):
     api = scenario["api"]
-    response = api.get("/auth/me", headers=auth(scenario["tokens"]["admin"]))
+    response = api.get("/api/auth/me", headers=auth(scenario["tokens"]["admin"]))
     assert response.status_code == 200
     assert response.json()["role"] == "admin"
     assert response.json()["email"] == "admin@test.local"
@@ -27,7 +27,7 @@ def test_login_y_me(scenario):
 def test_cliente_no_puede_crear_clientes(scenario):
     api = scenario["api"]
     response = api.post(
-        "/clients",
+        "/api/clients",
         json={"name": "Nuevo"},
         headers=auth(scenario["tokens"]["cliente_a"]),
     )
@@ -36,7 +36,7 @@ def test_cliente_no_puede_crear_clientes(scenario):
 
 def test_cliente_solo_ve_su_cliente(scenario):
     api = scenario["api"]
-    response = api.get("/clients", headers=auth(scenario["tokens"]["cliente_a"]))
+    response = api.get("/api/clients", headers=auth(scenario["tokens"]["cliente_a"]))
     assert response.status_code == 200
     assert [item["id"] for item in response.json()] == [scenario["clients"]["Cliente A"]]
 
@@ -47,20 +47,20 @@ def test_aislamiento_entre_clientes(scenario):
     client_b = scenario["clients"]["Cliente B"]
     contract_b = scenario["contracts"]["Cliente B"]
 
-    assert api.get(f"/clients/{client_b}", headers=auth(token_a)).status_code == 403
+    assert api.get(f"/api/clients/{client_b}", headers=auth(token_a)).status_code == 403
     assert (
-        api.get(f"/clients/{client_b}/applications", headers=auth(token_a)).status_code
+        api.get(f"/api/clients/{client_b}/applications", headers=auth(token_a)).status_code
         == 403
     )
     assert (
-        api.get(f"/contracts/{contract_b}", headers=auth(token_a)).status_code == 403
+        api.get(f"/api/contracts/{contract_b}", headers=auth(token_a)).status_code == 403
     )
     assert (
-        api.get(f"/contracts/{contract_b}/hour-bank", headers=auth(token_a)).status_code
+        api.get(f"/api/contracts/{contract_b}/hour-bank", headers=auth(token_a)).status_code
         == 403
     )
 
-    own_contracts = api.get("/contracts", headers=auth(token_a)).json()
+    own_contracts = api.get("/api/contracts", headers=auth(token_a)).json()
     assert [item["id"] for item in own_contracts] == [scenario["contracts"]["Cliente A"]]
 
 
@@ -69,12 +69,12 @@ def test_cliente_ve_su_banco_pero_no_consume(scenario):
     token = scenario["tokens"]["cliente_a"]
     contract_a = scenario["contracts"]["Cliente A"]
 
-    bank = api.get(f"/contracts/{contract_a}/hour-bank", headers=auth(token))
+    bank = api.get(f"/api/contracts/{contract_a}/hour-bank", headers=auth(token))
     assert bank.status_code == 200
     assert bank.json()["hours_remaining"] == 60
 
     response = api.post(
-        f"/contracts/{contract_a}/hour-bank/consume",
+        f"/api/contracts/{contract_a}/hour-bank/consume",
         json={"hours": 1},
         headers=auth(token),
     )
@@ -85,12 +85,12 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
     api = scenario["api"]
     headers = auth(scenario["tokens"]["admin"])
 
-    client = api.post("/clients", json={"name": "Cliente Nuevo"}, headers=headers)
+    client = api.post("/api/clients", json={"name": "Cliente Nuevo"}, headers=headers)
     assert client.status_code == 201
     client_id = client.json()["id"]
 
     application = api.post(
-        f"/clients/{client_id}/applications",
+        f"/api/clients/{client_id}/applications",
         json={"name": "App Nueva", "description": "Portal"},
         headers=headers,
     )
@@ -98,7 +98,7 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
     application_id = application.json()["id"]
 
     contract = api.post(
-        f"/applications/{application_id}/contracts",
+        f"/api/applications/{application_id}/contracts",
         json={
             "plan_id": scenario["plan_id"],
             "hours_bank_month": 60,
@@ -114,7 +114,7 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
     assert contract.json()["currency"] == "USD"
 
     duplicate = api.post(
-        f"/applications/{application_id}/contracts",
+        f"/api/applications/{application_id}/contracts",
         json={
             "plan_id": scenario["plan_id"],
             "hours_bank_month": 20,
@@ -127,12 +127,12 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
     )
     assert duplicate.status_code == 409
 
-    bank = api.get(f"/contracts/{contract_id}/hour-bank", headers=headers)
+    bank = api.get(f"/api/contracts/{contract_id}/hour-bank", headers=headers)
     assert bank.status_code == 200
     assert bank.json()["hours_remaining"] == 60
 
     consumed = api.post(
-        f"/contracts/{contract_id}/hour-bank/consume",
+        f"/api/contracts/{contract_id}/hour-bank/consume",
         json={"hours": 5, "note": "ajuste manual"},
         headers=headers,
     )
@@ -140,12 +140,12 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
     assert consumed.json()["hours_remaining"] == 55
     assert consumed.json()["alert"] == "ok"
 
-    history = api.get(f"/contracts/{contract_id}/hour-bank/history", headers=headers)
+    history = api.get(f"/api/contracts/{contract_id}/hour-bank/history", headers=headers)
     assert history.status_code == 200
     assert len(history.json()) == 1
 
     technician = api.post(
-        f"/contracts/{contract_id}/hour-bank/consume",
+        f"/api/contracts/{contract_id}/hour-bank/consume",
         json={"hours": 1},
         headers=auth(scenario["tokens"]["tecnico"]),
     )
@@ -156,7 +156,7 @@ def test_admin_crea_cliente_app_contrato_y_consume(scenario):
 def test_contrato_con_plan_inexistente(scenario):
     api = scenario["api"]
     response = api.post(
-        f"/applications/1/contracts",
+        f"/api/applications/1/contracts",
         json={
             "plan_id": 9999,
             "hours_bank_month": 10,
@@ -186,19 +186,19 @@ def test_crud_de_planes(scenario):
         "hours_bank_default": 10,
         "what_covers": ["Incidentes"],
     }
-    created = api.post("/plans", json=payload, headers=headers)
+    created = api.post("/api/plans", json=payload, headers=headers)
     assert created.status_code == 201, created.text
     plan_id = created.json()["id"]
 
     updated = api.put(
-        f"/plans/{plan_id}",
+        f"/api/plans/{plan_id}",
         json={**payload, "name": "Plan Custom v2"},
         headers=headers,
     )
     assert updated.status_code == 200
     assert updated.json()["name"] == "Plan Custom v2"
 
-    duplicated = api.post(f"/plans/{plan_id}/duplicate", headers=headers)
+    duplicated = api.post(f"/api/plans/{plan_id}/duplicate", headers=headers)
     assert duplicated.status_code == 201
     assert duplicated.json()["name"] == "Plan Custom v2 (copia)"
 
@@ -212,19 +212,19 @@ def test_plan_invalido_da_422(scenario):
         "sla_by_severity": {"critico": 4},
         "hours_bank_default": 10,
     }
-    assert api.post("/plans", json=payload, headers=headers).status_code == 422
+    assert api.post("/api/plans", json=payload, headers=headers).status_code == 422
 
     payload["window_coverage"] = {"timezone": "UTC", "start_hour": 9, "end_hour": 18}
     payload["sla_by_severity"] = {"urgente": 1}
-    assert api.post("/plans", json=payload, headers=headers).status_code == 422
+    assert api.post("/api/plans", json=payload, headers=headers).status_code == 422
 
     payload["sla_by_severity"] = {"critico": -1}
-    assert api.post("/plans", json=payload, headers=headers).status_code == 422
+    assert api.post("/api/plans", json=payload, headers=headers).status_code == 422
 
 
 def test_tecnico_no_puede_crear_clientes(scenario):
     api = scenario["api"]
     response = api.post(
-        "/clients", json={"name": "X"}, headers=auth(scenario["tokens"]["tecnico"])
+        "/api/clients", json={"name": "X"}, headers=auth(scenario["tokens"]["tecnico"])
     )
     assert response.status_code == 403

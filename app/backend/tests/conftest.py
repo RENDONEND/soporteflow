@@ -59,6 +59,7 @@ def plan(db):
             "holidays": [],
         },
         sla_by_severity={"critico": 9, "alto": 18, "normal": 27, "bajo": 36},
+        response_sla_by_severity={"critico": 4, "alto": 8, "normal": 12, "bajo": 24},
         hours_bank_default=30,
     )
     db.add(plan)
@@ -126,7 +127,7 @@ def scenario(db, api, plan):
     tokens = {}
     for key, user in users.items():
         response = api.post(
-            "/auth/login", json={"email": user.email, "password": PASSWORD}
+            "/api/auth/login", json={"email": user.email, "password": PASSWORD}
         )
         assert response.status_code == 200, response.text
         tokens[key] = response.json()["access_token"]

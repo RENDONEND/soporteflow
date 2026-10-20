@@ -79,6 +79,7 @@ def duplicate_plan(
         name=f"{source.name} (copia)",
         window_coverage=source.window_coverage,
         sla_by_severity=source.sla_by_severity,
+        response_sla_by_severity=source.response_sla_by_severity,
         hours_bank_default=source.hours_bank_default,
         what_covers=source.what_covers,
     )

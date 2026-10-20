@@ -64,12 +64,22 @@ class PlanBase(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     window_coverage: CoverageWindow
     sla_by_severity: dict[str, float]
+    response_sla_by_severity: dict[str, float] | None = None
     hours_bank_default: float = Field(gt=0)
     what_covers: list[str] | None = None
 
     @field_validator("sla_by_severity")
     @classmethod
     def check_sla(cls, value: dict[str, float]) -> dict[str, float]:
+        return validate_sla_map(value)
+
+    @field_validator("response_sla_by_severity")
+    @classmethod
+    def check_response_sla(
+        cls, value: dict[str, float] | None
+    ) -> dict[str, float] | None:
+        if value is None:
+            return None
         return validate_sla_map(value)
 
 
@@ -94,3 +104,4 @@ class PlanSummary(BaseModel):
     name: str
     window_coverage: dict
     sla_by_severity: dict
+    response_sla_by_severity: dict | None = None

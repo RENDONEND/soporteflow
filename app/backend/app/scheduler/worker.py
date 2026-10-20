@@ -1,4 +1,4 @@
-"""Scheduler: cierre de ciclos de banco de horas y preparación del ciclo vigente."""
+"""Scheduler: banco de horas y monitoreo de SLA."""
 
 import logging
 
@@ -6,6 +6,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 from app.db.session import SessionLocal
 from app.services import hour_bank
+from app.services.sla_monitor import check_sla
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,13 +18,25 @@ log = logging.getLogger("soporteflow.scheduler")
 def run_once() -> dict:
     db = SessionLocal()
     try:
-        result = hour_bank.run_maintenance(db)
+        bank = hour_bank.run_maintenance(db)
+        sla = check_sla(db)
         db.commit()
-        log.info("banco de horas: %s ciclos cerrados, %s creados", result["closed"], result["created"])
-        return result
+        log.info(
+            "banco: %s cerrados, %s creados · SLA: %s abiertos, %s vencidos, %s por vencer",
+            bank["closed"],
+            bank["created"],
+            sla["open_with_sla"],
+            len(sla["breached"]),
+            len(sla["warning"]),
+        )
+        if sla["breached"]:
+            log.warning("tickets con SLA vencido: %s", sla["breached"])
+        if sla["response_overdue"]:
+            log.warning("primera respuesta vencida: %s", sla["response_overdue"])
+        return {"bank": bank, "sla": sla}
     except Exception:
         db.rollback()
-        log.exception("falló el mantenimiento del banco de horas")
+        log.exception("falló el mantenimiento programado")
         raise
     finally:
         db.close()
@@ -34,8 +47,8 @@ def main() -> None:
     scheduler.add_job(
         run_once,
         "interval",
-        minutes=60,
-        id="hour-bank-maintenance",
+        minutes=15,
+        id="tick",
         coalesce=True,
         max_instances=1,
     )

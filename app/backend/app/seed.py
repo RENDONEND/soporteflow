@@ -19,6 +19,7 @@ DEFAULT_PLANS = [
             "holidays": [],
         },
         "sla_by_severity": {"critico": 9, "alto": 18, "normal": 27, "bajo": 36},
+        "response_sla_by_severity": {"critico": 4, "alto": 8, "normal": 12, "bajo": 24},
         "hours_bank_default": 30,
         "what_covers": ["Incidentes", "Mantenimiento preventivo básico"],
     },
@@ -32,6 +33,7 @@ DEFAULT_PLANS = [
             "holidays": [],
         },
         "sla_by_severity": {"critico": 4, "alto": 6, "normal": 12, "bajo": 24},
+        "response_sla_by_severity": {"critico": 1, "alto": 2, "normal": 4, "bajo": 8},
         "hours_bank_default": 60,
         "what_covers": [
             "Incidentes",
@@ -49,6 +51,7 @@ DEFAULT_PLANS = [
             "holidays": [],
         },
         "sla_by_severity": {"critico": 1, "alto": 2, "normal": 4, "bajo": 8},
+        "response_sla_by_severity": {"critico": 0.5, "alto": 1, "normal": 2, "bajo": 4},
         "hours_bank_default": 120,
         "what_covers": [
             "Incidentes 24/7",
@@ -68,6 +71,8 @@ def seed() -> None:
             if existing is None:
                 db.add(Plans(**data))
                 created_plans.append(data["name"])
+            elif existing.response_sla_by_severity is None:
+                existing.response_sla_by_severity = data["response_sla_by_severity"]
 
         created_admin = False
         admin = db.scalar(select(Users).where(Users.email == settings.admin_email.lower()))

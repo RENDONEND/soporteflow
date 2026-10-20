@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     admin_email: str = "admin@soporteflow.local"
     admin_password: str = "admin"
+    upload_dir: str = "data/uploads"
+    max_upload_mb: int = 10
 
     @property
     def cors_origin_list(self) -> list[str]:

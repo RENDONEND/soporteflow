@@ -16,6 +16,8 @@ services:
     environment: *backend-env
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/app/data/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -73,3 +75,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

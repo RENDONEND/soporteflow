@@ -87,6 +87,7 @@ class Plans(Base):
     name = Column(String(80), nullable=False)
     window_coverage = Column(JSON, nullable=False)
     sla_by_severity = Column(JSON, nullable=False)
+    response_sla_by_severity = Column(JSON, nullable=True)
     hours_bank_default = Column(Numeric(6, 2), nullable=False)
     what_covers = Column(JSON)
 
@@ -145,10 +146,35 @@ class Tickets(Base):
     status = Column(Enum(TicketStatus), default=TicketStatus.ABIERTO)
     title = Column(String(200))
     description = Column(Text)
-    created_by = Column(Integer)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     opened_at = Column(DateTime(timezone=True))
+    response_deadline = Column(DateTime(timezone=True), nullable=True)
     sla_deadline = Column(DateTime(timezone=True), nullable=True)
+    first_response_at = Column(DateTime(timezone=True), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    contract = relationship("Contracts")
+    creator = relationship("Users", foreign_keys=[created_by])
+    assignee = relationship("Users", foreign_keys=[assigned_to])
+    comments = relationship(
+        "TicketComments",
+        back_populates="ticket",
+        order_by="TicketComments.created_at",
+        cascade="all, delete-orphan",
+    )
+    time_logs = relationship(
+        "TicketTimeLogs",
+        back_populates="ticket",
+        order_by="TicketTimeLogs.logged_at",
+        cascade="all, delete-orphan",
+    )
+    attachments = relationship(
+        "TicketAttachments",
+        back_populates="ticket",
+        order_by="TicketAttachments.created_at",
+        cascade="all, delete-orphan",
+    )
 
 
 class TicketTimeLogs(Base):
@@ -160,6 +186,39 @@ class TicketTimeLogs(Base):
     hours = Column(Numeric(6, 2))
     logged_at = Column(DateTime(timezone=True))
     note = Column(Text)
+
+    ticket = relationship("Tickets", back_populates="time_logs")
+    user = relationship("Users")
+
+
+class TicketComments(Base):
+    __tablename__ = "ticket_comments"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    body = Column(Text, nullable=False)
+    internal = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    ticket = relationship("Tickets", back_populates="comments")
+    author = relationship("Users")
+
+
+class TicketAttachments(Base):
+    __tablename__ = "ticket_attachments"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(120))
+    size = Column(Integer, nullable=False, default=0)
+    storage_path = Column(String(500), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    ticket = relationship("Tickets", back_populates="attachments")
+    author = relationship("Users")
 
 
 class FeaturePacks(Base):
