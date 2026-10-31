@@ -9,6 +9,26 @@ export type TicketStatus =
   | 'cerrado'
 export type BankAlert = 'ok' | 'umbral' | 'agotado'
 export type SlaState = 'ok' | 'warning' | 'breached' | 'met' | 'none'
+export type PackStatus =
+  | 'propuesto'
+  | 'aprobado'
+  | 'rechazado'
+  | 'en_desarrollo'
+  | 'entregado'
+  | 'facturado'
+export type MaintenanceRecurrence = 'semanal' | 'mensual' | 'trimestral'
+export type NotificationType =
+  | 'ticket_creado'
+  | 'ticket_comentario'
+  | 'ticket_estado'
+  | 'sla_por_vencer'
+  | 'sla_vencido'
+  | 'banco_umbral'
+  | 'banco_agotado'
+  | 'pack_propuesto'
+  | 'pack_aprobado'
+  | 'pack_rechazado'
+  | 'mantenimiento_pendiente'
 
 export interface User {
   id: number
@@ -128,9 +148,114 @@ export interface Ticket {
   resolution_state: SlaState
   is_overdue: boolean
   hours_logged: number
+  packs: TicketPackSummary[]
+  closable: boolean
   comments: TicketComment[]
   time_logs: TicketTimeLog[]
   attachments: TicketAttachment[]
+}
+
+export interface TicketPackSummary {
+  id: number
+  name: string
+  status: PackStatus
+  price: number
+  currency: string
+  hours_estimated: number
+}
+
+export interface FeaturePackTicket {
+  id: number
+  title: string
+  status: TicketStatus
+  hours_logged: number
+}
+
+export interface FeaturePack {
+  id: number
+  contract_id: number
+  client_id: number | null
+  client_name: string | null
+  application_name: string | null
+  name: string
+  description: string | null
+  status: PackStatus
+  hours_estimated: number
+  hours_real: number
+  price: number
+  currency: string
+  created_at: string | null
+  decided_at: string | null
+  decided_by_name: string | null
+  approved_at: string | null
+  approved_by_name: string | null
+  delivered_at: string | null
+  billed_at: string | null
+  rejection_reason: string | null
+  ticket_ids: number[]
+  tickets: FeaturePackTicket[]
+}
+
+export interface MaintenanceRun {
+  id: number
+  run_at: string | null
+  hours: number
+  notes: string | null
+  user_name: string | null
+}
+
+export interface MaintenanceTask {
+  id: number
+  contract_id: number
+  client_id: number | null
+  client_name: string | null
+  application_name: string | null
+  name: string
+  recurrence: MaintenanceRecurrence
+  checklist: string[]
+  estimated_hours: number | null
+  active: boolean
+  last_run_at: string | null
+  last_run_by: string | null
+  next_due_at: string | null
+  due: boolean
+  overdue: boolean
+  runs: MaintenanceRun[]
+}
+
+export interface MaintenanceCalendarRun {
+  id: number
+  task_id: number
+  task_name: string | null
+  run_at: string | null
+  hours: number
+  notes: string | null
+  user_name: string | null
+}
+
+export interface MaintenanceCalendar {
+  contract_id: number
+  year: number
+  month: number
+  due_tasks: MaintenanceTask[]
+  month_hours: number
+  runs: MaintenanceCalendarRun[]
+}
+
+export interface Notification {
+  id: number
+  type: NotificationType
+  title: string
+  body: string | null
+  link: string | null
+  read: boolean
+  email_sent: boolean
+  created_at: string | null
+}
+
+export interface NotificationList {
+  unread: number
+  items: Notification[]
 }
 
 export interface DashboardAlert {

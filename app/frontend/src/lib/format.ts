@@ -1,5 +1,7 @@
 import type {
   BankAlert,
+  MaintenanceRecurrence,
+  PackStatus,
   SlaState,
   TicketSeverity,
   TicketStatus,
@@ -70,6 +72,38 @@ export const BANK_ALERT_TONES: Record<BankAlert, string> = {
 }
 
 export const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+export const PACK_STATUS_LABELS: Record<PackStatus, string> = {
+  propuesto: 'Propuesto',
+  aprobado: 'Aprobado por el cliente',
+  rechazado: 'Rechazado',
+  en_desarrollo: 'En desarrollo',
+  entregado: 'Entregado',
+  facturado: 'Facturado',
+}
+
+export const PACK_STATUS_TONES: Record<PackStatus, string> = {
+  propuesto: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  aprobado: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  rechazado: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+  en_desarrollo: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+  entregado: 'bg-sky-50 text-sky-700 ring-sky-600/20',
+  facturado: 'bg-violet-50 text-violet-700 ring-violet-600/20',
+}
+
+export const RECURRENCE_LABELS: Record<MaintenanceRecurrence, string> = {
+  semanal: 'Semanal',
+  mensual: 'Mensual',
+  trimestral: 'Trimestral',
+}
+
+export function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: currency || 'USD',
+    maximumFractionDigits: 2,
+  }).format(value)
+}
 
 export function formatHours(value: number): string {
   const rounded = Math.round(value * 100) / 100

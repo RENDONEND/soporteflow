@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  Boxes,
   CalendarClock,
   Clock,
   Download,
   FileUp,
   MessageSquare,
+  Package,
   Paperclip,
   Send,
   Timer,
@@ -22,6 +24,7 @@ import {
   formatBytes,
   formatDate,
   formatHours,
+  formatMoney,
   timeLeft,
 } from '../lib/format'
 import type { Ticket, TicketSeverity, TicketStatus, User } from '../lib/types'
@@ -38,6 +41,7 @@ import {
   cn,
 } from '../components/ui'
 import {
+  PackStatusBadge,
   SeverityBadge,
   SlaBadge,
   StatusBadge,
@@ -501,6 +505,54 @@ export default function TicketDetail() {
               <CalendarClock className="h-4 w-4" /> Ver contrato y banco
             </Link>
           </Card>
+
+          {ticket.type === 'funcionalidad' && (
+            <Card className="p-5">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-slate-400" />
+                <h2 className="text-sm font-semibold text-slate-900">Pack de funcionalidad</h2>
+              </div>
+              {ticket.packs.length === 0 ? (
+                <>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Este ticket no está en ningún pack. Según RF-37 no se puede cerrar hasta
+                    vincularlo a un pack aprobado por el cliente.
+                  </p>
+                  <Link
+                    to="/feature-packs"
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    <Boxes className="h-4 w-4" /> Ir a packs
+                  </Link>
+                </>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {ticket.packs.map((pack) => (
+                    <Link
+                      key={pack.id}
+                      to={`/feature-packs/${pack.id}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 transition hover:bg-slate-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-800">{pack.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {formatMoney(pack.price, pack.currency)} ·{' '}
+                          {formatHours(pack.hours_estimated)}
+                        </p>
+                      </div>
+                      <PackStatusBadge status={pack.status} />
+                    </Link>
+                  ))}
+                  {!ticket.closable && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      El pack todavía no está aprobado por el cliente: no se puede cerrar el
+                      ticket (RF-37).
+                    </p>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
 
           {isAgency && (
             <Card className="p-5">

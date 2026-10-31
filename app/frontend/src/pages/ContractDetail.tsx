@@ -27,6 +27,7 @@ import {
 import type {
   Contract,
   HourBank,
+  MaintenanceTask,
   Plan,
   Ticket,
   TicketSeverity,
@@ -47,6 +48,7 @@ import {
   Textarea,
 } from '../components/ui'
 import {
+  RecurrenceBadge,
   SeverityBadge,
   SlaBadge,
   StatusBadge,
@@ -85,6 +87,12 @@ export default function ContractDetail() {
   const ticketsQuery = useQuery<Ticket[]>({
     queryKey: ['contract-tickets', contractId],
     queryFn: () => get<Ticket[]>(`/tickets?contract_id=${contractId}`),
+    enabled: Number.isFinite(contractId),
+  })
+
+  const maintenanceQuery = useQuery<MaintenanceTask[]>({
+    queryKey: ['maintenance', contractId],
+    queryFn: () => get<MaintenanceTask[]>(`/maintenance-tasks?contract_id=${contractId}`),
     enabled: Number.isFinite(contractId),
   })
 
@@ -572,6 +580,62 @@ export default function ContractDetail() {
           </Card>
         </div>
       </div>
+
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Mantenimiento preventivo</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Tareas recurrentes del contrato y sus últimas ejecuciones.
+            </p>
+          </div>
+          {isAgency && (
+            <Link to="/maintenance">
+              <Button variant="ghost" size="sm">
+                Gestionar
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
+        </div>
+        {maintenanceQuery.isLoading ? (
+          <div className="flex h-24 items-center justify-center">
+            <Spinner />
+          </div>
+        ) : (maintenanceQuery.data || []).length === 0 ? (
+          <EmptyState
+            icon={<CalendarClock className="h-5 w-5" />}
+            title="Sin mantenimiento programado"
+            description={
+              isAgency
+                ? 'Creá tareas de mantenimiento recurrente para este contrato.'
+                : 'Tu proveedor no programó mantenimiento preventivo.'
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {(maintenanceQuery.data || []).map((task) => (
+              <li key={task.id} className="px-5 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-slate-800">{task.name}</span>
+                  <RecurrenceBadge recurrence={task.recurrence} />
+                  {task.active && task.due && (
+                    <Badge tone="bg-amber-50 text-amber-700 ring-amber-600/20">Pendiente</Badge>
+                  )}
+                  {!task.active && (
+                    <Badge tone="bg-slate-100 text-slate-500 ring-slate-500/20">Inactiva</Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Última: {task.last_run_at ? formatDate(task.last_run_at) : 'nunca'}
+                  {' · '}Próxima: {formatDate(task.next_due_at)}
+                  {task.estimated_hours ? ` · ${formatHours(task.estimated_hours)} estimadas` : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Modal
         open={editOpen}

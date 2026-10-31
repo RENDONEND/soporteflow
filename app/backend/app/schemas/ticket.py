@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.models import TicketSeverity, TicketStatus, TicketType
+from app.models.models import PackStatus, TicketSeverity, TicketStatus, TicketType
 
 
 class TicketCreate(BaseModel):
@@ -64,6 +64,15 @@ class TicketAttachmentOut(BaseModel):
     user_name: str | None
 
 
+class TicketPackSummary(BaseModel):
+    id: int
+    name: str
+    status: PackStatus
+    price: float
+    currency: str
+    hours_estimated: float
+
+
 class TicketOut(BaseModel):
     id: int
     contract_id: int
@@ -90,6 +99,8 @@ class TicketOut(BaseModel):
     resolution_state: str
     is_overdue: bool
     hours_logged: float
+    packs: list[TicketPackSummary] = Field(default_factory=list)
+    closable: bool = True
     comments: list[TicketCommentOut] = Field(default_factory=list)
     time_logs: list[TicketTimeLogOut] = Field(default_factory=list)
     attachments: list[TicketAttachmentOut] = Field(default_factory=list)

@@ -47,9 +47,30 @@ class TicketStatus(str, enum.Enum):
 class PackStatus(str, enum.Enum):
     PROPUESTO = "propuesto"
     APROBADO = "aprobado"
+    RECHAZADO = "rechazado"
     EN_DESARROLLO = "en_desarrollo"
     ENTREGADO = "entregado"
     FACTURADO = "facturado"
+
+
+class MaintenanceRecurrence(str, enum.Enum):
+    SEMANAL = "semanal"
+    MENSUAL = "mensual"
+    TRIMESTRAL = "trimestral"
+
+
+class NotificationType(str, enum.Enum):
+    TICKET_CREADO = "ticket_creado"
+    TICKET_COMENTARIO = "ticket_comentario"
+    TICKET_ESTADO = "ticket_estado"
+    SLA_POR_VENCER = "sla_por_vencer"
+    SLA_VENCIDO = "sla_vencido"
+    BANCO_UMBRAL = "banco_umbral"
+    BANCO_AGOTADO = "banco_agotado"
+    PACK_PROPUESTO = "pack_propuesto"
+    PACK_APROBADO = "pack_aprobado"
+    PACK_RECHAZADO = "pack_rechazado"
+    MANTENIMIENTO_PENDIENTE = "mantenimiento_pendiente"
 
 
 class UserRole(str, enum.Enum):
@@ -175,6 +196,11 @@ class Tickets(Base):
         order_by="TicketAttachments.created_at",
         cascade="all, delete-orphan",
     )
+    packs = relationship(
+        "FeaturePacks",
+        secondary="feature_pack_tickets",
+        back_populates="tickets",
+    )
 
 
 class TicketTimeLogs(Base):
@@ -227,12 +253,36 @@ class FeaturePacks(Base):
     id = Column(Integer, primary_key=True)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
     name = Column(String(160))
+    description = Column(Text)
     status = Column(Enum(PackStatus), default=PackStatus.PROPUESTO)
     hours_estimated = Column(Numeric(6, 2))
     hours_real = Column(Numeric(6, 2), default=0)
     price = Column(Numeric(12, 2))
-    approved_by = Column(Integer, nullable=True)
+    currency = Column(String(3), nullable=False, default="USD")
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
+    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    billed_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    contract = relationship("Contracts")
+    approver = relationship("Users", foreign_keys=[approved_by])
+    decider = relationship("Users", foreign_keys=[decided_by])
+    creator = relationship("Users", foreign_keys=[created_by])
+    tickets = relationship("Tickets", secondary="feature_pack_tickets", back_populates="packs")
+
+
+class FeaturePackTickets(Base):
+    __tablename__ = "feature_pack_tickets"
+
+    pack_id = Column(
+        Integer, ForeignKey("feature_packs.id"), primary_key=True
+    )
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), primary_key=True)
 
 
 class MaintenanceTasks(Base):
@@ -240,9 +290,15 @@ class MaintenanceTasks(Base):
 
     id = Column(Integer, primary_key=True)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
-    name = Column(String(160))
-    recurrence = Column(String(40))
+    name = Column(String(160), nullable=False)
+    recurrence = Column(Enum(MaintenanceRecurrence), default=MaintenanceRecurrence.MENSUAL)
     checklist = Column(JSON)
+    estimated_hours = Column(Numeric(6, 2), nullable=True)
+    active = Column(Boolean, nullable=False, default=True)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    contract = relationship("Contracts")
 
 
 class MaintenanceRuns(Base):
@@ -251,9 +307,29 @@ class MaintenanceRuns(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(Integer, ForeignKey("maintenance_tasks.id"), nullable=False, index=True)
     run_at = Column(DateTime(timezone=True))
-    completed_by = Column(Integer)
+    completed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     hours = Column(Numeric(6, 2))
     notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("MaintenanceTasks")
+    user = relationship("Users")
+
+
+class Notifications(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(Enum(NotificationType), nullable=False)
+    title = Column(String(200), nullable=False)
+    body = Column(Text)
+    link = Column(String(300))
+    read = Column(Boolean, nullable=False, default=False)
+    email_sent = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("Users")
 
 
 class Users(Base):

@@ -7,6 +7,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 
 export function cn(...classes: Array<string | false | null | undefined>) {
@@ -17,16 +18,11 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 type ButtonSize = 'sm' | 'md'
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 focus-visible:ring-indigo-500 disabled:bg-indigo-300',
-  secondary:
-    'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:ring-indigo-500',
-  ghost:
-    'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-indigo-500',
-  danger:
-    'bg-rose-600 text-white shadow-sm hover:bg-rose-700 focus-visible:ring-rose-500 disabled:bg-rose-300',
-  success:
-    'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-500 disabled:bg-emerald-300',
+  primary: 'bg-primary text-primary-foreground shadow-sm hover:opacity-90 focus-visible:ring-primary disabled:opacity-50',
+  secondary: 'bg-secondary text-secondary-foreground ring-1 ring-inset ring-border hover:bg-secondary/80 focus-visible:ring-primary',
+  ghost: 'text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:ring-primary',
+  danger: 'bg-destructive text-destructive-foreground shadow-sm hover:opacity-90 focus-visible:ring-destructive disabled:opacity-50',
+  success: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-500 disabled:opacity-50',
 }
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
@@ -72,7 +68,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       <input
         ref={ref}
         className={cn(
-          'h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500',
+          'h-10 w-full rounded-xl border-0 bg-card px-3 text-sm text-foreground shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-muted disabled:text-muted-foreground transition-colors',
           className,
         )}
         {...props}
@@ -89,7 +85,7 @@ export const Textarea = forwardRef<
     <textarea
       ref={ref}
       className={cn(
-        'w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-500',
+        'w-full rounded-xl border-0 bg-card px-3 py-2 text-sm text-foreground shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-primary transition-colors',
         className,
       )}
       {...props}
@@ -105,7 +101,7 @@ export const Select = forwardRef<
     <select
       ref={ref}
       className={cn(
-        'h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-500',
+        'h-10 w-full rounded-xl border-0 bg-card px-3 text-sm text-foreground shadow-sm ring-1 ring-inset ring-border focus:ring-2 focus:ring-inset focus:ring-primary transition-colors',
         className,
       )}
       {...props}
@@ -128,9 +124,9 @@ export function Field({
 }) {
   return (
     <label className={cn('block space-y-1.5', className)}>
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-slate-500">{hint}</span>}
+      {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
     </label>
   )
 }
@@ -145,7 +141,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-xl border border-slate-200/80 bg-white shadow-card',
+        'rounded-2xl border border-border bg-card shadow-sm backdrop-blur',
         className,
       )}
     >
@@ -212,8 +208,8 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -234,12 +230,12 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
       {icon && (
-        <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+        <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-muted-foreground">
           {icon}
         </div>
       )}
-      <p className="text-sm font-medium text-slate-900">{title}</p>
-      {description && <p className="max-w-sm text-sm text-slate-500">{description}</p>}
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
   )
@@ -249,7 +245,7 @@ export function ErrorBanner({ error }: { error: unknown }) {
   if (!error) return null
   const message = error instanceof Error ? error.message : String(error)
   return (
-    <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20">
+    <div className="flex items-start gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive ring-1 ring-inset ring-destructive/20">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <span>{message}</span>
     </div>
@@ -291,40 +287,56 @@ export function Modal({
   const width = size === 'xl' ? 'max-w-3xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
-      <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className={cn(
-          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl animate-fade-in sm:rounded-2xl',
-          width,
-        )}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-            {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
-          </div>
-          <button
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="absolute inset-0 bg-background/60 backdrop-blur-sm"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Cerrar"
+            aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            className={cn(
+              'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-card shadow-2xl sm:rounded-2xl',
+              width,
+            )}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="scrollbar-thin flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && (
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50/70 px-5 py-3 sm:flex-row sm:justify-end">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+            <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">{title}</h2>
+                {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="scrollbar-thin flex-1 overflow-y-auto px-5 py-4">{children}</div>
+            {footer && (
+              <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/50 px-5 py-3 sm:flex-row sm:justify-end">
+                {footer}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

@@ -2,11 +2,18 @@
 
 from datetime import datetime, timezone
 
-from app.models.models import Plans, TicketStatus, UserRole
+from app.models.models import PackStatus, Plans, TicketStatus, TicketType, UserRole
 from app.services.sla_engine import DEFAULT_SLA_HOURS, add_working_hours
 
 CLOSED_STATUSES = (TicketStatus.RESUELTO, TicketStatus.CERRADO)
 WARNING_RATIO = 0.8
+
+CLOSABLE_PACK_STATUSES = (
+    PackStatus.APROBADO,
+    PackStatus.EN_DESARROLLO,
+    PackStatus.ENTREGADO,
+    PackStatus.FACTURADO,
+)
 
 
 def now_utc() -> datetime:
@@ -137,6 +144,23 @@ def serialize_ticket(ticket, user, detail: bool = True, now: datetime | None = N
 
     hours_logged = float(sum(float(log.hours or 0) for log in ticket.time_logs))
 
+    packs = [
+        {
+            "id": pack.id,
+            "name": pack.name or "",
+            "status": pack.status,
+            "price": float(pack.price or 0),
+            "currency": pack.currency,
+            "hours_estimated": float(pack.hours_estimated or 0),
+        }
+        for pack in ticket.packs
+    ]
+    pack_statuses = {PackStatus(pack.status) for pack in ticket.packs}
+    closable = (
+        ticket.type is not TicketType.FUNCIONALIDAD
+        or bool(pack_statuses & set(CLOSABLE_PACK_STATUSES))
+    )
+
     return {
         "id": ticket.id,
         "contract_id": ticket.contract_id,
@@ -163,6 +187,8 @@ def serialize_ticket(ticket, user, detail: bool = True, now: datetime | None = N
         "resolution_state": summary["resolution_state"],
         "is_overdue": summary["is_overdue"],
         "hours_logged": hours_logged,
+        "packs": packs,
+        "closable": closable,
         "comments": comments,
         "time_logs": time_logs,
         "attachments": attachments,

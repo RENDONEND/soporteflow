@@ -26,6 +26,7 @@ from app.db.session import get_db
 from app.models.models import (
     Applications,
     Contracts,
+    NotificationType,
     TicketAttachments,
     TicketComments,
     TicketSeverity,
@@ -44,7 +45,7 @@ from app.schemas.ticket import (
     TicketTimeLogCreate,
     TicketUpdate,
 )
-from app.services import hour_bank
+from app.services import feature_packs, hour_bank, notifications
 from app.services.tickets import deadlines_for, ensure_utc, now_utc, serialize_ticket
 
 router = APIRouter(tags=["tickets"])
@@ -74,6 +75,48 @@ def _attachment_out(attachment: TicketAttachments) -> dict:
         "created_at": ensure_utc(attachment.created_at),
         "user_name": attachment.author.name if attachment.author else None,
     }
+
+
+def _ensure_pack_allows_close(ticket: Tickets) -> None:
+    """RF-37: un ticket de funcionalidad no se cierra sin un pack aprobado."""
+    allowed = [
+        pack for pack in ticket.packs if feature_packs.is_closable(pack)
+    ]
+    if allowed:
+        return
+    linked = [pack for pack in ticket.packs]
+    if linked:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "El pack vinculado todavía no está aprobado por el cliente "
+                "(RF-37). No se puede cerrar el ticket."
+            ),
+        )
+    raise HTTPException(
+        status_code=409,
+        detail=(
+            "Un ticket de funcionalidad no puede cerrarse sin un pack aprobado "
+            "(RF-37). Creá el pack y esperá la aprobación del cliente."
+        ),
+    )
+
+
+def _notify_status_change(
+    db: Session, ticket: Tickets, user: Users, new_status: TicketStatus
+) -> None:
+    title = f"Ticket #{ticket.id} → {new_status.value}"
+    body = ticket.title or ""
+    from_client = user.role is UserRole.CLIENTE
+    notifications.notify_ticket(
+        db,
+        ticket,
+        NotificationType.TICKET_ESTADO,
+        title,
+        body=body,
+        to_agency=from_client,
+        to_client=not from_client,
+    )
 
 
 @router.get("/tickets", response_model=list[TicketOut])
@@ -150,6 +193,18 @@ def create_ticket(
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
+
+    from_client = user.role is UserRole.CLIENTE
+    notifications.notify_ticket(
+        db,
+        ticket,
+        NotificationType.TICKET_CREADO,
+        f"Ticket #{ticket.id}: {ticket.title}",
+        body=f"Tipo {ticket.type.value} · abierto por {user.name}",
+        to_agency=from_client,
+        to_client=not from_client,
+    )
+    db.commit()
     return serialize_ticket(ticket, user)
 
 
@@ -205,6 +260,11 @@ def update_ticket(
             setattr(ticket, field, data[field])
 
     if "status" in data and payload.status is not None:
+        if (
+            payload.status in CLOSED
+            and ticket.type is TicketType.FUNCIONALIDAD
+        ):
+            _ensure_pack_allows_close(ticket)
         ticket.status = payload.status
         if payload.status in CLOSED:
             ticket.resolved_at = now_utc()
@@ -215,6 +275,10 @@ def update_ticket(
 
     db.commit()
     db.refresh(ticket)
+
+    if "status" in data and payload.status is not None:
+        _notify_status_change(db, ticket, user, payload.status)
+        db.commit()
     return serialize_ticket(ticket, user)
 
 
@@ -244,6 +308,19 @@ def add_comment(
 
     db.commit()
     db.refresh(ticket)
+
+    if not payload.internal:
+        from_client = user.role is UserRole.CLIENTE
+        notifications.notify_ticket(
+            db,
+            ticket,
+            NotificationType.TICKET_COMENTARIO,
+            f"Nuevo comentario en el ticket #{ticket.id}",
+            body=payload.body.strip()[:280],
+            to_agency=from_client,
+            to_client=not from_client,
+        )
+        db.commit()
     return serialize_ticket(ticket, user)
 
 

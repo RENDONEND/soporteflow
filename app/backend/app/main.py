@@ -11,7 +11,10 @@ from app.api import (
     clients,
     contracts,
     dashboard,
+    feature_packs,
     hour_bank,
+    maintenance,
+    notifications,
     plans,
     tickets,
     users,
@@ -44,6 +47,9 @@ app.include_router(contracts.router, prefix=API_PREFIX)
 app.include_router(plans.router, prefix=API_PREFIX)
 app.include_router(hour_bank.router, prefix=API_PREFIX)
 app.include_router(tickets.router, prefix=API_PREFIX)
+app.include_router(feature_packs.router, prefix=API_PREFIX)
+app.include_router(maintenance.router, prefix=API_PREFIX)
+app.include_router(notifications.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix=API_PREFIX)
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"

@@ -5,12 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Layout from './components/Layout'
 import { Spinner } from './components/ui'
 import { AuthProvider, useAuth } from './lib/auth'
+import { ThemeProvider } from './lib/theme'
 import ClientDetail from './pages/ClientDetail'
 import Clients from './pages/Clients'
 import ContractDetail from './pages/ContractDetail'
 import Contracts from './pages/Contracts'
 import Dashboard from './pages/Dashboard'
+import FeaturePackDetail from './pages/FeaturePackDetail'
+import FeaturePacks from './pages/FeaturePacks'
 import Login from './pages/Login'
+import Maintenance from './pages/Maintenance'
 import NotFound from './pages/NotFound'
 import Plans from './pages/Plans'
 import TicketDetail from './pages/TicketDetail'
@@ -78,6 +82,9 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="tickets" element={<Tickets />} />
         <Route path="tickets/:id" element={<TicketDetail />} />
+        <Route path="feature-packs" element={<FeaturePacks />} />
+        <Route path="feature-packs/:id" element={<FeaturePackDetail />} />
+        <Route path="maintenance" element={<Maintenance />} />
         <Route
           path="clients"
           element={
@@ -121,11 +128,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

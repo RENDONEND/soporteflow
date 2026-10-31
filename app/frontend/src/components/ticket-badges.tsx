@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 
 import {
+  PACK_STATUS_LABELS,
+  PACK_STATUS_TONES,
+  RECURRENCE_LABELS,
   SEVERITY_LABELS,
   SEVERITY_TONES,
   SLA_LABELS,
@@ -10,7 +13,14 @@ import {
   TYPE_LABELS,
   timeLeft,
 } from '../lib/format'
-import type { SlaState, TicketSeverity, TicketStatus, TicketType } from '../lib/types'
+import type {
+  MaintenanceRecurrence,
+  PackStatus,
+  SlaState,
+  TicketSeverity,
+  TicketStatus,
+  TicketType,
+} from '../lib/types'
 import { Badge } from './ui'
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
@@ -54,6 +64,18 @@ export function SlaBadge({
     <Badge tone={SLA_TONES[state]}>
       {SLA_LABELS[state]}
       {countdown && <span className="font-normal opacity-80">· {countdown}</span>}
+    </Badge>
+  )
+}
+
+export function PackStatusBadge({ status }: { status: PackStatus }) {
+  return <Badge tone={PACK_STATUS_TONES[status]}>{PACK_STATUS_LABELS[status]}</Badge>
+}
+
+export function RecurrenceBadge({ recurrence }: { recurrence: MaintenanceRecurrence }) {
+  return (
+    <Badge tone="bg-slate-100 text-slate-600 ring-slate-500/20">
+      {RECURRENCE_LABELS[recurrence]}
     </Badge>
   )
 }
